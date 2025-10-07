@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <meta name="description" content="Progressive Web App для сканирования штрих-кодов с офлайн-режимом и синхронизацией с Google Sheets"/>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://script.google.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; img-src 'self' data:; manifest-src 'self';"/>
-  <title>Scanner Logger — v25-sidebar-left</title>
+  <title>Scanner Logger — v30-compact-dialog</title>
   <!-- Deployed to GitHub Pages -->
   <meta name="theme-color" content="#0a0b0d"/>
   <link rel="manifest" href="manifest.webmanifest"/>
@@ -16,18 +16,24 @@
 <body>
   <input id="scan-input" autofocus autocomplete="off" inputmode="none" aria-hidden="true"/>
 
+  <!-- Orientation Warning -->
+  <div id="orientation-warning" class="orientation-warning">
+    <div class="warning-content">
+      <div class="warning-icon">🔄</div>
+      <div class="warning-title">Поверните устройство</div>
+      <div class="warning-text">Для работы с приложением поверните телефон горизонтально</div>
+    </div>
+  </div>
+
   <div class="app">
     <div class="app-layout">
       <aside class="sidebar-nav">
         <div class="nav-tabs-vertical" role="tablist">
-          <button class="nav-tab active" data-tab="actions" role="tab" aria-selected="true" title="Действия">
+          <button class="nav-tab active" data-tab="dashboard" role="tab" aria-selected="true" title="Рабочий стол">
+            <span class="nav-icon">🏠</span>
+          </button>
+          <button class="nav-tab" data-tab="actions" role="tab" title="Действия">
             <span class="nav-icon">📋</span>
-          </button>
-          <button class="nav-tab" data-tab="today" role="tab" title="Сегодня">
-            <span class="nav-icon">📊</span>
-          </button>
-          <button class="nav-tab" data-tab="clients" role="tab" title="Клиенты">
-            <span class="nav-icon">👥</span>
           </button>
           <button class="nav-tab" data-tab="boxes" role="tab" title="Короба">
             <span class="nav-icon">📦</span>
@@ -39,48 +45,7 @@
       </aside>
 
       <div class="main-content">
-        <section id="statusBar" class="status status--ok card" role="status" aria-live="polite">
-          <div class="status-new">
-            <div class="status-header">
-              <div id="operatorName" class="operator-name">Оператор</div>
-              <div id="onlineIndicator" class="online-dot" title="Онлайн"></div>
-            </div>
-            <div class="status-body">
-              <div class="metrics-left">
-                <div class="metric-row">
-                  <div class="metric-item">
-                    <div class="metric-label">Склад</div>
-                    <div id="cityVal" class="metric-value">—</div>
-                  </div>
-                  <div class="metric-divider"></div>
-                  <div class="metric-item">
-                    <div class="metric-label">Клиент</div>
-                    <div id="clientVal" class="metric-value">—</div>
-                  </div>
-                </div>
-                <div class="metric-row">
-                  <div class="metric-item">
-                    <div class="metric-label">№ короба</div>
-                    <div id="boxVal" class="metric-value">№—</div>
-                  </div>
-                  <div class="metric-divider"></div>
-                  <div class="metric-item">
-                    <div class="metric-label">время открытия короба</div>
-                    <div id="boxStartVal" class="metric-value">—</div>
-                  </div>
-                </div>
-              </div>
-              <div class="count-right">
-                <div class="count-label">Штук в коробе<br>(отсканировано)</div>
-                <div id="itemsCountVal" class="count-huge">0</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="content-area card">
-          <div id="tabContent" class="list" aria-live="polite"></div>
-        </section>
+        <div id="tabContent" class="tab-content-wrapper"></div>
       </div>
     </div>
 
@@ -147,13 +112,16 @@
   </div>
 
   <dialog id="init-dlg">
-    <div class="hd">Первичная настройка</div>
+    <div class="hd">🚀 Первичная настройка</div>
     <div class="bd">
-      <label>SYNC URL</label>
-      <input id="init-sync" placeholder="URL из Apps Script (Deploy → Web app)">
-      <label>Имя сотрудника</label>
-      <input id="init-operator" placeholder="например: s01-olga">
-      <div class="hint">Эти значения сохранятся локально. Их можно изменить позже в меню.</div>
+      <label>
+        SYNC URL
+        <input id="init-sync" placeholder="SYNC URL">
+      </label>
+      <label>
+        Имя сотрудника
+        <input id="init-operator" placeholder="Иван">
+      </label>
     </div>
     <div class="ft">
       <button id="init-cancel" class="btn">Закрыть</button>

@@ -1,6 +1,6 @@
 import { getAll } from '../db/index.js';
 
-export const APP = { version:'v25-sidebar-left', db:null, focusEnabled:true, state:{ city:null, client:null, box:null, boxStart:null, itemsInBox:0, online:navigator.onLine, lastSync:null, lastSyncError:false, theme:'dark', operator:'', syncUrl:'', sendPlain:true, speech:true, hardcapEnabled:true, hardcapSeconds:30 } };
+export const APP = { version:'v30-compact-dialog', db:null, focusEnabled:true, state:{ city:null, client:null, box:null, boxStart:null, itemsInBox:0, online:navigator.onLine, lastSync:null, lastSyncError:false, theme:'light', operator:'', syncUrl:'', sendPlain:true, speech:true, hardcapEnabled:true, hardcapSeconds:30 } };
 
 export function applyTheme(mode){ const root=document.documentElement; if(mode==='light'){ root.setAttribute('data-theme','light'); } else { root.setAttribute('data-theme','dark'); } }
 
@@ -16,7 +16,7 @@ export function render(){
   const clientVal=document.querySelector('#clientVal'); 
   if(clientVal) clientVal.textContent=APP.state.client||'—'; 
   const boxVal=document.querySelector('#boxVal'); 
-  if(boxVal) boxVal.textContent=APP.state.box?('№'+(APP.state.box.split('/')[1]||APP.state.box)):'№—'; 
+  if(boxVal) boxVal.textContent=APP.state.box?(APP.state.box.split('/')[1]||APP.state.box):'—'; 
   const boxStartVal=document.querySelector('#boxStartVal'); 
   if(boxStartVal) boxStartVal.textContent=APP.state.boxStart?new Date(APP.state.boxStart).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'—'; 
   const itemsCountVal=document.querySelector('#itemsCountVal'); 

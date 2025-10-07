@@ -46,6 +46,18 @@ html[data-theme=light]{ --bg:#f7f8fa; --card:#fff; --muted:#f0f3f7; --text:#0f12
 .kv .val.muted{color:var(--text-dim)} .kv .val.ok{color:var(--ok)} .kv .val.err{color:var(--err)}
 .spin{width:16px;height:16px;border-radius:50%;border:2px solid color-mix(in oklab,var(--text) 25%, transparent);border-top-color:var(--accent);animation:r .8s linear infinite;display:inline-block}@keyframes r{to{transform:rotate(360deg)}}
 .grid-sm{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}@media(max-width:980px){.grid-sm{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){.grid-sm{grid-template-columns:1fr}}.card-btn{cursor:pointer;user-select:none}
+
+/* Dialog / Modal */
+dialog{ border:none; border-radius:16px; padding:0; max-width:420px; width:90vw; background:var(--card); box-shadow:0 20px 60px rgba(0,0,0,.3) }
+dialog::backdrop{ background:rgba(0,0,0,.5) }
+dialog .hd{ padding:1rem 1.5rem; border-bottom:2px solid var(--border); font-size:1.2rem; font-weight:900; text-align:center; color:var(--text) }
+dialog .bd{ padding:1rem 1.5rem; display:flex; flex-direction:column; gap:.8rem }
+dialog .bd label{ display:flex; flex-direction:column; gap:.4rem; font-weight:700; font-size:.95rem; color:var(--text) }
+dialog .bd input{ width:100%; padding:.8rem; border-radius:10px; border:2px solid var(--border); background:var(--muted); color:var(--text); font-size:1rem; outline:none; transition:all .2s }
+dialog .bd input:focus{ border-color:var(--accent); background:var(--card) }
+dialog .bd .hint{ color:var(--text-dim); font-size:.85rem; font-weight:400; line-height:1.3; padding:.5rem; background:var(--muted); border-radius:6px }
+dialog .ft{ padding:1rem 1.5rem; border-top:2px solid var(--border); display:flex; gap:.8rem; justify-content:flex-end }
+dialog .ft .btn{ min-width:110px; padding:.8rem 1.2rem; font-size:1rem }
 /* Actions UX one-line */
 .lines{ display:grid; gap:.5rem }
 .line{ display:grid; grid-template-columns: 90px 1fr; align-items:center; gap:.8rem; padding:.75rem 1rem; background:var(--muted); border:1px solid var(--border); border-radius:12px }
@@ -89,16 +101,15 @@ html[data-theme=light]{ --bg:#f7f8fa; --card:#fff; --muted:#f0f3f7; --text:#0f12
 .metric-value{ font-size:1.8rem; font-weight:800; color:var(--text); text-transform:uppercase }
 .metric-divider{ width:2px; height:60px; background:var(--border); align-self:center }
 
-.count-right{ display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--muted); border:3px solid var(--border); border-radius:20px; padding:1.5rem 2.5rem; min-width:220px }
-.count-label{ font-size:1rem; color:var(--text-dim); text-align:center; margin-bottom:.8rem; line-height:1.3; font-weight:600 }
-.count-huge{ font-size:5rem; font-weight:900; line-height:1; color:var(--accent); transition:color .2s ease }
+.count-right{ display:flex; align-items:center; justify-content:center; background:var(--muted); border:3px solid var(--border); border-radius:20px; padding:2rem 3rem; min-width:180px }
+.count-huge{ font-size:7rem; font-weight:900; line-height:1; color:var(--text-dim); transition:color .2s ease }
 .count-huge.ok{ color:var(--ok) }
 .count-huge.err{ color:var(--err) }
 
 .bd.no-padding{ padding:0 }
-.app-layout{ display:grid; grid-template-columns:auto 1fr; gap:12px; padding:1rem; align-items:start }
+.app-layout{ display:grid; grid-template-columns:auto 1fr; gap:12px; padding:1rem; align-items:stretch }
 .main-content{ display:flex; flex-direction:column; gap:12px; min-width:0; flex:1 }
-.sidebar-nav{ display:flex; flex-direction:column; gap:1rem; padding:1rem; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); align-self:start; position:sticky; top:1rem; max-height:calc(100vh - 2rem) }
+.sidebar-nav{ display:flex; flex-direction:column; gap:1rem; padding:1rem; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); position:sticky; top:1rem; max-height:calc(100vh - 2rem) }
 .nav-tabs-vertical{ display:flex; flex-direction:column; gap:.8rem }
 .nav-tab{ display:flex; align-items:center; justify-content:center; width:64px; height:64px; background:var(--muted); border:2px solid var(--border); border-radius:16px; cursor:pointer; transition:all .2s ease }
 .nav-tab:hover{ background:var(--card); border-color:var(--accent); transform:scale(1.05) }
@@ -108,4 +119,17 @@ html[data-theme=light]{ --bg:#f7f8fa; --card:#fff; --muted:#f0f3f7; --text:#0f12
 .nav-menu:hover{ background:var(--card); border-color:var(--accent); transform:scale(1.05) }
 .menu-icon{ font-size:2.2rem; font-weight:700; line-height:1 }
 .content-area{ flex:1; overflow:auto; min-width:0 }
-#tabContent{ padding:1rem }
+.tab-content-wrapper{ display:flex; flex-direction:column; gap:12px; width:100% }
+.tab-dashboard{ display:flex; flex-direction:column; gap:12px; height:100% }
+.tab-dashboard .status{ flex:1; display:flex; flex-direction:column }
+.list.card{ padding:1rem }
+#tabContent{ width:100% }
+
+/* Orientation Warning - показывается только в портретном режиме */
+.orientation-warning{ display:none; position:fixed; inset:0; z-index:9999; background:var(--bg); align-items:center; justify-content:center; padding:2rem }
+.warning-content{ text-align:center; max-width:400px }
+.warning-icon{ font-size:5rem; margin-bottom:1.5rem; animation:rotate-icon 2s ease-in-out infinite }
+.warning-title{ font-size:1.8rem; font-weight:900; margin-bottom:1rem; color:var(--text) }
+.warning-text{ font-size:1.2rem; color:var(--text-dim); line-height:1.5 }
+@keyframes rotate-icon{ 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(90deg)} }
+@media (orientation: portrait){ .orientation-warning{ display:flex !important } .app{ display:none } }

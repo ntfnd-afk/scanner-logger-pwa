@@ -1,8 +1,9 @@
 import { openDB, put, add, getAll, getAllByIndex } from './db/index.js';
 import { requestWakeLock, initWakeLock } from './features/wakelock.js';
+import { initOrientation } from './features/orientation.js';
 import { syncNow } from './sync/index.js';
 import { APP, applyTheme, setStatePill, updateItemsIndicator, render } from './state/appState.js';
-import { initTabs, renderActionsTab, toggleAcc } from './ui/tabs.js';
+import { initTabs, renderActionsTab, renderDashboardTab, toggleAcc } from './ui/tabs.js';
 const $=(s)=>document.querySelector(s);
 const MESSAGES={NO_CITY:'Сначала откройте город',NO_BOX:'Сначала откройте короб',BOX_NOT_CLOSED:'Сначала закройте текущий короб',CITY_NOT_CLOSED:'Сначала закройте текущий город',CITY_CLOSED:'Город закрыт',BOX_CLOSED:'Короб закрыт',SYNC_ERROR:'Ошибка синхронизации'};
 function say(code){ if(MESSAGES[code]) speak(MESSAGES[code]); }
@@ -22,7 +23,7 @@ async function loadSettings(){ const rows=await getAll(APP.db,'settings'); rows.
 async function saveSetting(k,v){ APP.state[k]=v; await put(APP.db,'settings',{key:k,value:v}); }
 async function saveAllSettings(){ await Promise.all([ saveSetting('syncUrl',$('#syncUrlInput').value.trim()), saveSetting('operator',$('#operatorInput').value.trim()), saveSetting('sendPlain',$('#sendPlainInput').checked), saveSetting('hardcapEnabled',$('#hardcapEnabledInput').checked), saveSetting('hardcapSeconds',Number($('#hardcapSecondsInput').value||30)) ]); const s=$('#saveStatus'); s.textContent='✓ Сохранено'; setTimeout(()=> s.textContent='', 1800); }
 
-async function logEvent(ev){ const ts=Date.now(); const row={uuid:uuid(),timestamp:ts,day:ymd(ts),operator:APP.state.operator||'',client:APP.state.client||'',city:APP.state.city||'',box:APP.state.box||'',code:ev.code||'',type:ev.type||'',source:'pwa'}; await add(APP.db,'events',row); if(!firstUnsentTs) firstUnsentTs=row.timestamp; const activeTab=document.querySelector('.tab.active')?.dataset.tab; if(activeTab==='actions'){ const box=$('#tabContent'); await renderActionsTab(box); } return row; }
+async function logEvent(ev){ const ts=Date.now(); const row={uuid:uuid(),timestamp:ts,day:ymd(ts),operator:APP.state.operator||'',client:APP.state.client||'',city:APP.state.city||'',box:APP.state.box||'',code:ev.code||'',type:ev.type||'',source:'pwa'}; await add(APP.db,'events',row); if(!firstUnsentTs) firstUnsentTs=row.timestamp; const activeTab=document.querySelector('.nav-tab.active')?.dataset.tab; if(activeTab==='actions'){ const box=$('#tabContent'); box.className='list list--actions card'; await renderActionsTab(box); } else if(activeTab==='dashboard'){ render(); } return row; }
 
 let focusTimer=null; function enableFocusLoop(on){ APP.focusEnabled=on; const input=$('#scan-input'); if(!on){ input.blur(); if(focusTimer){ clearInterval(focusTimer); focusTimer=null; } return; } const focusInput=()=>input.focus({preventScroll:true}); if(focusTimer) clearInterval(focusTimer); focusTimer=setInterval(()=>{ if(APP.focusEnabled && document.activeElement!==input) focusInput(); },800); focusInput(); }
 window.enableFocusLoop = enableFocusLoop;
@@ -49,5 +50,5 @@ function initSettings(){ $('#operatorInput').addEventListener('change',e=> saveS
 function initDrawerFocusControl(){ const d=$('#drawer'); d.addEventListener('change',()=>{ enableFocusLoop(!d.checked); }); const navMenuBtn=$('#navMenuBtn'); if(navMenuBtn) navMenuBtn.addEventListener('click',()=>{ d.checked=!d.checked; enableFocusLoop(!d.checked); }); }
 function initSW(){ if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(console.error); } }
 
-(async function boot(){ await initDB(); await loadSettings(); bindInitDialog(); initTheme(); initNetwork(); initSettings(); initTabs(); document.querySelector('.nav-tab.active').click(); initScanner(); initDrawerFocusControl(); initSW(); initWakeLock(); requestWakeLock(); render(); if(!APP.state.syncUrl || !APP.state.operator) openInitDialog(); setInterval(()=>{ if(APP.state.online) syncNow(); },60000); })();
+(async function boot(){ await initDB(); await loadSettings(); bindInitDialog(); initTheme(); initNetwork(); initSettings(); initTabs(); const firstTab=document.querySelector('.nav-tab.active'); if(firstTab) firstTab.click(); initScanner(); initDrawerFocusControl(); initSW(); initWakeLock(); requestWakeLock(); initOrientation(); if(!APP.state.syncUrl || !APP.state.operator) openInitDialog(); setInterval(()=>{ if(APP.state.online) syncNow(); },60000); })();
 (function(){ const box=document.querySelector('#tabContent'); let t=null; const pause=()=>{ if(typeof enableFocusLoop==='function'){ enableFocusLoop(false); if(t) clearTimeout(t); t=setTimeout(()=> enableFocusLoop(true), 2000);} }; ['pointerdown','focusin'].forEach(ev=> box.addEventListener(ev,pause)); })();

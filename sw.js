@@ -1,4 +1,4 @@
-const CACHE='scanner-logger-v25-sidebar-left'; const ASSETS=[
+const CACHE='scanner-logger-v30-compact-dialog'; const ASSETS=[
   './',
   './index.html',
   './styles.css',
@@ -11,6 +11,7 @@ const CACHE='scanner-logger-v25-sidebar-left'; const ASSETS=[
   './db/index.js',
   // Features
   './features/wakelock.js',
+  './features/orientation.js',
   // State
   './state/appState.js',
   // Sync
