@@ -16,7 +16,11 @@ export async function renderActionsTab(boxEl){
   boxEl.className='list list--actions';
   const rows = (await getTodayEvents()).sort((a,b)=> b.timestamp - a.timestamp).slice(0,200);
   boxEl.innerHTML='';
-  if(rows.length===0){ boxEl.innerHTML='<div class="chip">Пока пусто</div>'; window.enableFocusLoop?.(true); return; }
+  if(rows.length===0){ 
+    boxEl.innerHTML='<div class="chip" style="text-align:center;padding:2rem 1rem;"><div style="font-size:3rem;margin-bottom:.5rem;">📦</div><div style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">Начните сканирование</div><div style="color:var(--text-dim);font-size:.95rem;">Отсканируйте <b>CITY:название</b> для начала работы</div></div>'; 
+    window.enableFocusLoop?.(true); 
+    return; 
+  }
   const wrap=document.createElement('div'); wrap.className='lines';
   rows.forEach(r=>{
     const {t,desc}=humanLine(r);
@@ -30,10 +34,11 @@ export async function renderActionsTab(boxEl){
 }
 
 export function initTabs(){
-  document.querySelectorAll('.tab').forEach(btn=>{
+  document.querySelectorAll('.nav-tab').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      document.querySelectorAll('.tab').forEach(b=> b.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(b=> { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
       btn.classList.add('active');
+      btn.setAttribute('aria-selected','true');
       const tab=btn.dataset.tab;
       const box=$('#tabContent');
       box.innerHTML='';

@@ -1,4 +1,4 @@
-const CACHE='scanner-logger-v22g-fixed'; const ASSETS=[
+const CACHE='scanner-logger-v25-sidebar-left'; const ASSETS=[
   './',
   './index.html',
   './styles.css',
