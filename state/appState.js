@@ -1,0 +1,12 @@
+import { getAll } from '../db/index.js';
+
+export const APP = { version:'v22g-fixed', db:null, focusEnabled:true, state:{ city:null, client:null, box:null, boxStart:null, itemsInBox:0, online:navigator.onLine, lastSync:null, lastSyncError:false, theme:'dark', operator:'', syncUrl:'', sendPlain:true, speech:true, hardcapEnabled:true, hardcapSeconds:30 } };
+
+export function applyTheme(mode){ const root=document.documentElement; if(mode==='light'){ root.setAttribute('data-theme','light'); } else { root.setAttribute('data-theme','dark'); } }
+
+export function setStatePill(type='ok',text='IDLE'){ const bar=document.querySelector('#statusBar'); if(!bar) return; bar.classList.remove('status--ok','status--warn','status--error'); bar.classList.add(`status--${type}`); const pill=document.querySelector('#statePill'); if(pill) pill.textContent=text; }
+
+export async function updateItemsIndicator(){ const el=document.querySelector('#itemsCountVal'); if(!el) return; el.classList.remove('ok','err','muted'); const all=await getAll(APP.db,'events'); const itemsForBox=all.filter(r=> r.type==='ITEM' && r.box===(APP.state.box||'')); const pending=itemsForBox.filter(r=>!r.synced).length; if(APP.state.lastSyncError){ el.classList.add('err'); } else if((APP.state.itemsInBox||0)>0 && pending===0){ el.classList.add('ok'); } else { el.classList.add('muted'); } }
+
+export function render(){ const cityVal=document.querySelector('#cityVal'); if(cityVal) cityVal.textContent=APP.state.city||'—'; const clientVal=document.querySelector('#clientVal'); if(clientVal) clientVal.textContent=APP.state.client||'—'; const boxVal=document.querySelector('#boxVal'); if(boxVal) boxVal.textContent=APP.state.box?(APP.state.box.split('/')[1]||APP.state.box):'—'; const boxStartVal=document.querySelector('#boxStartVal'); if(boxStartVal) boxStartVal.textContent=APP.state.boxStart?new Date(APP.state.boxStart).toLocaleTimeString():'—'; const itemsCountVal=document.querySelector('#itemsCountVal'); if(itemsCountVal) itemsCountVal.textContent=String(APP.state.itemsInBox||0); updateItemsIndicator(); const onlineVal=document.querySelector('#onlineVal'); if(onlineVal) onlineVal.textContent=APP.state.online?'Онлайн':'Оффлайн'; const meta=`Готово. Сканируйте · ${APP.state.online?'Синхронизировано':'Оффлайн'} • Последний синк: ${APP.state.lastSync?new Date(APP.state.lastSync).toLocaleTimeString():'—'}`; const statusMeta=document.querySelector('#statusMeta'); if(statusMeta) statusMeta.textContent=meta; }
+

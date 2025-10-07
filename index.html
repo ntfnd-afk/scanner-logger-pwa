@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="description" content="Progressive Web App для сканирования штрих-кодов с офлайн-режимом и синхронизацией с Google Sheets"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://script.google.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; img-src 'self' data:; manifest-src 'self';"/>
+  <title>Scanner Logger — v22g-fixed</title>
+  <meta name="theme-color" content="#0a0b0d"/>
+  <link rel="manifest" href="manifest.webmanifest"/>
+  <link rel="icon" href="assets/icon-192.png" sizes="192x192"/>
+  <link rel="apple-touch-icon" href="assets/icon-192.png"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <input id="scan-input" autofocus autocomplete="off" inputmode="none" aria-hidden="true"/>
+
+  <div class="app">
+    <div class="container">
+      <section id="statusBar" class="status status--ok card" role="status" aria-live="polite">
+        <div class="pill state" id="statePill">IDLE</div>
+        <div class="meta" id="statusMeta">Данные уже синхронизированы</div>
+        <div class="pill">PWA · OFFLINE-READY</div>
+      </section>
+
+      <section class="grid">
+        <div class="card">
+          <div class="hd">
+            <h2>Текущая работа</h2>
+            <div class="hint">Показывается только активный короб</div>
+          </div>
+          <div class="bd">
+            <div class="current" id="currentRow">
+              <div class="kv"><small>Город</small><div id="cityVal" class="val">—</div></div>
+              <div class="kv"><small>Клиент</small><div id="clientVal" class="val">—</div></div>
+              <div class="kv"><small>Короб</small><div id="boxVal" class="val">—</div></div>
+              <div class="kv"><small>Старт короба</small><div id="boxStartVal" class="val">—</div></div>
+              <div class="kv big"><small>Товаров в коробе</small><div id="itemsCountVal" class="val">0</div></div>
+            </div>
+
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-tab="actions" role="tab" aria-selected="true">Действия</button>
+              <button class="tab" data-tab="today" role="tab">Сегодня</button>
+              <button class="tab" data-tab="clients" role="tab">Клиенты</button>
+              <button class="tab" data-tab="boxes" role="tab">Короба</button>
+            </div>
+
+            <div id="tabContent" class="list" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="hd">
+            <h2>Подсказки и состояния</h2>
+            <div class="hint">Здесь могут быть ошибки/уведомления</div>
+          </div>
+          <div class="bd">
+            <div class="kv"><small>Связь</small><div id="onlineVal" class="val">Онлайн</div></div>
+            <div class="hint" style="margin:.8rem 0 0">Озвучка включена по умолчанию на максимум. Регулировка — физическими кнопками громкости планшета.</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="drawer-wrap">
+        <input id="drawer" type="checkbox"/>
+        <label class="drawer-btn" for="drawer" title="Меню">≡</label>
+        <label class="backdrop" for="drawer"></label>
+
+        <div class="drawer">
+          <div class="sheet">
+            <div class="hdr">
+              <div class="ttl">Меню</div>
+              <label class="close" for="drawer" title="Закрыть">×</label>
+            </div>
+            <div class="body">
+              <div class="row">
+                <button id="btnSync" class="btn primary">Синхронизация</button>
+                <button id="btnSyncNow" class="btn">Отправить сейчас</button>
+                <button id="btnTest" class="btn">Тест синка</button>
+                <button id="btnResendToday" class="btn">Переслать за сегодня</button>
+              </div>
+
+              <div class="theme-line">
+                <div class="theme-note">Тема: тёмная / светлая</div>
+                <label class="switch" title="Переключить тему">
+                  <input id="themeToggle" type="checkbox"/>
+                  <span class="knob" aria-hidden="true"></span>
+                </label>
+              </div>
+
+              <div class="settings card" style="padding:.6rem 1rem;">
+                <div style="display:grid;grid-template-columns:1fr;gap:.5rem">
+                  <label>SYNC_URL
+                    <input id="syncUrlInput" class="text" placeholder="Вставьте Apps Script URL"/>
+                  </label>
+                  <label class="row" style="align-items:center; gap:.5rem">
+                    <input id="sendPlainInput" type="checkbox" checked>
+                    <span class="hint">Отправлять как <b>text/plain</b> (без preflight)</span>
+                  </label>
+                  <label class="row" style="align-items:center; gap:.5rem">
+                    <input id="hardcapEnabledInput" type="checkbox" checked>
+                    <span class="hint">Ограничивать ожидание пакета (HARD_CAP)</span>
+                    <input id="hardcapSecondsInput" class="text" style="width:120px" placeholder="сек." value="30">
+                  </label>
+                  <label>Имя сотрудника
+                    <input id="operatorInput" class="text" placeholder="Иван"/>
+                  </label>
+                  <div class="row">
+                    <button id="btnSave" class="btn primary" style="flex:0 0 180px">Сохранить</button>
+                    <div id="saveStatus" class="hint" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <button id="btnUpdateApp" class="btn">Обновить приложение</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot">v22g-fixed · офлайн-пилот · 2025</div>
+    </div>
+  </div>
+
+  <dialog id="init-dlg">
+    <div class="hd">Первичная настройка</div>
+    <div class="bd">
+      <label>SYNC URL</label>
+      <input id="init-sync" placeholder="URL из Apps Script (Deploy → Web app)">
+      <label>Имя сотрудника</label>
+      <input id="init-operator" placeholder="например: s01-olga">
+      <div class="hint">Эти значения сохранятся локально. Их можно изменить позже в меню.</div>
+    </div>
+    <div class="ft">
+      <button id="init-cancel" class="btn">Закрыть</button>
+      <button id="init-save" class="btn primary">Сохранить</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="vendor-idb.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
