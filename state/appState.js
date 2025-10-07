@@ -1,12 +1,29 @@
 import { getAll } from '../db/index.js';
 
-export const APP = { version:'v30-compact-dialog', db:null, focusEnabled:true, state:{ city:null, client:null, box:null, boxStart:null, itemsInBox:0, online:navigator.onLine, lastSync:null, lastSyncError:false, theme:'light', operator:'', syncUrl:'', sendPlain:true, speech:true, hardcapEnabled:true, hardcapSeconds:30 } };
+export const APP = { version:'v31-auto-close', db:null, focusEnabled:true, state:{ city:null, client:null, box:null, boxStart:null, itemsInBox:0, lastBoxItemsCount:0, online:navigator.onLine, lastSync:null, lastSyncError:false, theme:'light', operator:'', syncUrl:'', sendPlain:true, speech:true } };
 
 export function applyTheme(mode){ const root=document.documentElement; if(mode==='light'){ root.setAttribute('data-theme','light'); } else { root.setAttribute('data-theme','dark'); } }
 
 export function setStatePill(type='ok',text='IDLE'){ const bar=document.querySelector('#statusBar'); if(!bar) return; bar.classList.remove('status--ok','status--warn','status--error'); bar.classList.add(`status--${type}`); const pill=document.querySelector('#statePill'); if(pill) pill.textContent=text; }
 
-export async function updateItemsIndicator(){ const el=document.querySelector('#itemsCountVal'); if(!el) return; el.classList.remove('ok','err'); const all=await getAll(APP.db,'events'); const itemsForBox=all.filter(r=> r.type==='ITEM' && r.box===(APP.state.box||'')); const pending=itemsForBox.filter(r=>!r.synced).length; if(APP.state.lastSyncError){ el.classList.add('err'); } else if((APP.state.itemsInBox||0)>0 && pending===0){ el.classList.add('ok'); } }
+export async function updateItemsIndicator(){ 
+  const el=document.querySelector('#itemsCountVal'); 
+  if(!el) return; 
+  el.classList.remove('ok','err'); 
+  
+  // Для закрытых коробов не проверяем синхронизацию
+  if(!APP.state.box) return;
+  
+  const all=await getAll(APP.db,'events'); 
+  const itemsForBox=all.filter(r=> r.type==='ITEM' && r.box===APP.state.box); 
+  const pending=itemsForBox.filter(r=>!r.synced).length; 
+  
+  if(APP.state.lastSyncError){ 
+    el.classList.add('err'); 
+  } else if((APP.state.itemsInBox||0)>0 && pending===0){ 
+    el.classList.add('ok'); 
+  }
+}
 
 export function render(){ 
   const operatorName=document.querySelector('#operatorName'); 
@@ -20,7 +37,11 @@ export function render(){
   const boxStartVal=document.querySelector('#boxStartVal'); 
   if(boxStartVal) boxStartVal.textContent=APP.state.boxStart?new Date(APP.state.boxStart).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'—'; 
   const itemsCountVal=document.querySelector('#itemsCountVal'); 
-  if(itemsCountVal) itemsCountVal.textContent=String(APP.state.itemsInBox||0); 
+  if(itemsCountVal) {
+    // Показываем количество товаров: если короб открыт - текущее, если закрыт - последнее
+    const displayCount = APP.state.box ? APP.state.itemsInBox : (APP.state.lastBoxItemsCount || 0);
+    itemsCountVal.textContent=String(displayCount);
+  } 
   updateItemsIndicator(); 
   const onlineIndicator=document.querySelector('#onlineIndicator'); 
   if(onlineIndicator){ 

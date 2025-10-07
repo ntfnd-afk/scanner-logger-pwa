@@ -46,7 +46,7 @@ export function renderDashboardTab(boxEl){
             </div>
           </div>
           <div class="count-right">
-            <div id="itemsCountVal" class="count-huge">${APP.state.itemsInBox || 0}</div>
+            <div id="itemsCountVal" class="count-huge">${APP.state.box ? (APP.state.itemsInBox || 0) : (APP.state.lastBoxItemsCount || 0)}</div>
           </div>
         </div>
       </div>
