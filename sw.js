@@ -1,4 +1,4 @@
-const CACHE='scanner-logger-v31-auto-close'; const ASSETS=[
+const CACHE='scanner-logger-v32-cyrillic-check'; const ASSETS=[
   './',
   './index.html',
   './styles.css',

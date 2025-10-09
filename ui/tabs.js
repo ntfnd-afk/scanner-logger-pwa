@@ -56,7 +56,7 @@ export function renderDashboardTab(boxEl){
   window.enableFocusLoop?.(true);
 }
 
-function humanLine(r){ const mapType={ITEM:'Отсканирован',BOX:'Открыт короб',CLOSE:'Закрыт короб',CITY:'Открыт город',CITY_CLOSE:'Закрыт город',ERROR:'ОШИБКА'}; const t=(mapType[r.type]||r.type); let desc=''; if(r.type==='ITEM') desc=`ШК ${r.code}`; else if(r.type==='BOX') desc=`${r.code}`; else if(r.type==='CITY'||r.type==='CITY_CLOSE') desc=`${r.city||r.code||''}`; else if(r.type==='ERROR'){ const mapErr={NO_BOX:'Не открыт короб',NO_CITY:'Не открыт город',BOX_NOT_CLOSED:'Сначала закройте короб',CITY_NOT_CLOSED:'Сначала закройте город'}; desc=mapErr[r.code]||(r.code||''); } else desc=r.code||''; return {t,desc}; }
+function humanLine(r){ const mapType={ITEM:'Отсканирован',BOX:'Открыт короб',CLOSE:'Закрыт короб',CITY:'Открыт город',CITY_CLOSE:'Закрыт город',REMOVE:'Удален товар',BULK_REMOVE:'Массовое удаление',ERROR:'ОШИБКА'}; const t=(mapType[r.type]||r.type); let desc=''; if(r.type==='ITEM') desc=`ШК ${r.code}`; else if(r.type==='BOX') desc=`${r.code}`; else if(r.type==='CITY'||r.type==='CITY_CLOSE') desc=`${r.city||r.code||''}`; else if(r.type==='REMOVE') desc=`ШК ${r.code}`; else if(r.type==='BULK_REMOVE') desc=`${r.code}`; else if(r.type==='ERROR'){ const mapErr={NO_BOX:'Не открыт короб',NO_CITY:'Не открыт город',BOX_NOT_CLOSED:'Сначала закройте короб',CITY_NOT_CLOSED:'Сначала закройте город',CYRILLIC_ERROR:'Кириллица в QR-коде'}; desc=mapErr[r.code]||(r.code||''); if(r.details) desc+=` (${r.details})`; } else desc=r.code||''; return {t,desc}; }
 
 export async function renderActionsTab(boxEl){
   const rows = (await getTodayEvents()).sort((a,b)=> b.timestamp - a.timestamp).slice(0,200);
@@ -97,11 +97,49 @@ export function initTabs(){
         box.className='list list--boxes card';
         const rows=await getTodayEvents();
         const boxes=new Map();
-        rows.forEach(r=>{ if(r.box){ const rec=(boxes.get(r.box)||{items:0,events:[]}); if(r.type==='ITEM') rec.items++; rec.events.push(r); boxes.set(r.box,rec); } });
+        rows.forEach(r=>{ 
+          if(r.box){ 
+            const rec=(boxes.get(r.box)||{items:0,events:[]}); 
+            if(r.type==='ITEM') rec.items++; 
+            rec.events.push(r); 
+            boxes.set(r.box,rec); 
+          } 
+        });
+        
+        // Пересчитываем количество товаров (теперь только ITEM, так как удаленные физически удаляются)
+        boxes.forEach((rec, boxId) => {
+          const items = rec.events.filter(e => e.type === 'ITEM');
+          rec.items = items.length;
+        });
         const arr=[...boxes.entries()].sort((a,b)=>{ const ta=Math.max(...a[1].events.map(e=>e.timestamp)); const tb=Math.max(...b[1].events.map(e=>e.timestamp)); return tb-ta; });
         if(arr.length===0){ box.innerHTML='<div class="chip">Нет коробов</div>'; return; }
         const list=document.createElement('div'); list.className='accordion';
-        arr.forEach(([boxId,rec])=>{ const it=document.createElement('div'); it.className='acc-item'; const hd=document.createElement('div'); hd.className='acc-hd'; const short=boxId.includes('/')?boxId.split('/')[1]:boxId; hd.innerHTML=`<span class="badge">${rec.items}</span><span class="acc-title">${boxId.includes('/')?boxId.split('/')[0]:boxId} — короб № ${boxId.includes('/')?boxId.split('/')[1]:boxId}</span>`; hd.addEventListener('click',()=>toggleAcc(it)); const bd=document.createElement('div'); bd.className='acc-bd'; const items=rec.events.filter(e=> e.type==='ITEM').sort((a,b)=> b.timestamp-a.timestamp); if(items.length===0) bd.innerHTML='<div class="hint">Нет товаров</div>'; else items.forEach(e=>{ const row=document.createElement('div'); row.className='chip'; row.innerHTML=`<span>${new Date(e.timestamp).toLocaleTimeString()}</span><small>${e.code}</small>`; bd.appendChild(row); }); it.appendChild(hd); it.appendChild(bd); list.appendChild(it); });
+        arr.forEach(([boxId,rec])=>{ 
+          const it=document.createElement('div'); 
+          it.className='acc-item'; 
+          const hd=document.createElement('div'); 
+          hd.className='acc-hd'; 
+          const short=boxId.includes('/')?boxId.split('/')[1]:boxId; 
+          hd.innerHTML=`<span class="badge">${rec.items}</span><span class="acc-title">${boxId.includes('/')?boxId.split('/')[0]:boxId} — короб № ${boxId.includes('/')?boxId.split('/')[1]:boxId}</span>`; 
+          hd.addEventListener('click',()=>toggleAcc(it)); 
+          const bd=document.createElement('div'); 
+          bd.className='acc-bd'; 
+          const items=rec.events.filter(e=> e.type==='ITEM').sort((a,b)=> b.timestamp-a.timestamp); 
+          
+          if(items.length===0) bd.innerHTML='<div class="hint">Нет товаров</div>'; 
+          else {
+            items.forEach(e=>{ 
+              const row=document.createElement('div'); 
+              row.className='chip'; 
+              row.innerHTML=`<span>${new Date(e.timestamp).toLocaleTimeString()}</span><small>${e.code}</small>`; 
+              bd.appendChild(row); 
+            });
+          }
+          
+          it.appendChild(hd); 
+          it.appendChild(bd); 
+          list.appendChild(it); 
+        });
         box.appendChild(list);
         window.enableFocusLoop?.(true);
       }

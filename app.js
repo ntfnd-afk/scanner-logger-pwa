@@ -5,7 +5,7 @@ import { syncNow } from './sync/index.js';
 import { APP, applyTheme, setStatePill, updateItemsIndicator, render } from './state/appState.js';
 import { initTabs, renderActionsTab, renderDashboardTab, toggleAcc } from './ui/tabs.js';
 const $=(s)=>document.querySelector(s);
-const MESSAGES={NO_CITY:'Сначала откройте город',NO_BOX:'Сначала откройте короб',BOX_NOT_CLOSED:'Сначала закройте текущий короб',CITY_NOT_CLOSED:'Сначала закройте текущий город',CITY_CLOSED:'Город закрыт',BOX_CLOSED:'Короб закрыт',SYNC_ERROR:'Ошибка синхронизации',BOX_TIMEOUT:'Короб автоматически закрыт'};
+const MESSAGES={NO_CITY:'Сначала откройте город',NO_BOX:'Сначала откройте короб',BOX_NOT_CLOSED:'Сначала закройте текущий короб',CITY_NOT_CLOSED:'Сначала закройте текущий город',CITY_CLOSED:'Город закрыт',BOX_CLOSED:'Короб закрыт',SYNC_ERROR:'Ошибка синхронизации',BOX_TIMEOUT:'Короб автоматически закрыт',CYRILLIC_ERROR:'Ошибка: кириллица в QR-коде'};
 function say(code){ if(MESSAGES[code]) speak(MESSAGES[code]); }
 let debounceTimer=null; const DEBOUNCE_MS=3000; const MAX_BATCH=40; let sendingNow=false; let firstUnsentTs=null;
 function setSending(on){ 
@@ -32,6 +32,7 @@ function scheduleDebouncedSync(){
 
 async function initDB(){ APP.db=await openDB('scannerlogger',5,(db,oldV)=>{ if(oldV<1){ const st=db.createObjectStore('settings',{keyPath:'key'}); const ev=db.createObjectStore('events',{keyPath:'uuid'}); ev.createIndex('byDay','day'); } if(oldV<2){ db.createObjectStore('box',{keyPath:'id'}); } }); }
 function speak(t){ try{ if(!APP.state.speech) return; const u=new SpeechSynthesisUtterance(t); u.lang='ru-RU'; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+function hasCyrillic(text){ return /[а-яё]/i.test(text); }
 function uuid(){ return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)); }
 function ymd(ts){ const d=new Date(ts); const y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2); return `${y}-${m}-${day}`; }
 function formatTime(ts){ try{ return new Date(ts).toLocaleTimeString(); }catch(e){ return '' } }
@@ -41,7 +42,7 @@ async function loadSettings(){ const rows=await getAll(APP.db,'settings'); rows.
 async function saveSetting(k,v){ APP.state[k]=v; await put(APP.db,'settings',{key:k,value:v}); }
 async function saveAllSettings(){ await Promise.all([ saveSetting('syncUrl',$('#syncUrlInput').value.trim()), saveSetting('operator',$('#operatorInput').value.trim()), saveSetting('sendPlain',$('#sendPlainInput').checked) ]); const s=$('#saveStatus'); s.textContent='✓ Сохранено'; setTimeout(()=> s.textContent='', 1800); }
 
-async function logEvent(ev){ const ts=Date.now(); const row={uuid:uuid(),timestamp:ts,day:ymd(ts),operator:APP.state.operator||'',client:APP.state.client||'',city:APP.state.city||'',box:APP.state.box||'',code:ev.code||'',type:ev.type||'',source:'pwa'}; await add(APP.db,'events',row); if(!firstUnsentTs) firstUnsentTs=row.timestamp; const activeTab=document.querySelector('.nav-tab.active')?.dataset.tab; if(activeTab==='actions'){ const box=$('#tabContent'); box.className='list list--actions card'; await renderActionsTab(box); } else if(activeTab==='dashboard'){ render(); } return row; }
+async function logEvent(ev){ const ts=Date.now(); const row={uuid:uuid(),timestamp:ts,day:ymd(ts),operator:APP.state.operator||'',client:APP.state.client||'',city:APP.state.city||'',box:APP.state.box||'',code:ev.code||'',type:ev.type||'',source:'pwa',details:ev.details||''}; await add(APP.db,'events',row); if(!firstUnsentTs) firstUnsentTs=row.timestamp; const activeTab=document.querySelector('.nav-tab.active')?.dataset.tab; if(activeTab==='actions'){ const box=$('#tabContent'); box.className='list list--actions card'; await renderActionsTab(box); } else if(activeTab==='dashboard'){ render(); } return row; }
 
 let focusTimer=null; function enableFocusLoop(on){ APP.focusEnabled=on; const input=$('#scan-input'); if(!on){ input.blur(); if(focusTimer){ clearInterval(focusTimer); focusTimer=null; } return; } const focusInput=()=>input.focus({preventScroll:true}); if(focusTimer) clearInterval(focusTimer); focusTimer=setInterval(()=>{ if(APP.focusEnabled && document.activeElement!==input) focusInput(); },800); focusInput(); }
 window.enableFocusLoop = enableFocusLoop;
@@ -49,6 +50,16 @@ function initScanner(){ const input=$('#scan-input'); addEventListener('keydown'
 
 async function onScan(code){
   if(!code) return;
+  
+  // Проверка на кириллицу в QR-коде
+  if(hasCyrillic(code)){
+    setStatePill('error','CYRILLIC');
+    say('CYRILLIC_ERROR');
+    await logEvent({type:'ERROR',code:'CYRILLIC_ERROR',details:code});
+    render();
+    return;
+  }
+  
   let t='ITEM';
   if(/^CITY:/i.test(code)) t='CITY'; else if(/^BOX:/i.test(code)) t='BOX';
 

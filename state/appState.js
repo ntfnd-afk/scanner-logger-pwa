@@ -1,6 +1,6 @@
 import { getAll } from '../db/index.js';
 
-export const APP = { version:'v31-auto-close', db:null, focusEnabled:true, state:{ city:null, client:null, box:null, boxStart:null, itemsInBox:0, lastBoxItemsCount:0, online:navigator.onLine, lastSync:null, lastSyncError:false, theme:'light', operator:'', syncUrl:'', sendPlain:true, speech:true } };
+export const APP = { version:'v32-cyrillic-check', db:null, focusEnabled:true, state:{ city:null, client:null, box:null, boxStart:null, itemsInBox:0, lastBoxItemsCount:0, online:navigator.onLine, lastSync:null, lastSyncError:false, theme:'light', operator:'', syncUrl:'', sendPlain:true, speech:true } };
 
 export function applyTheme(mode){ const root=document.documentElement; if(mode==='light'){ root.setAttribute('data-theme','light'); } else { root.setAttribute('data-theme','dark'); } }
 

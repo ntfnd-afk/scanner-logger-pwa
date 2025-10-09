@@ -1,7 +1,7 @@
 /** ====== НАСТРОЙКИ ====== */
 var SPREADSHEET_ID = '1MOvQCiWBY4FE8K8NOWU7x2nMm-4H0NMoTqUuBOnVye4';  // ID таблицы
 var SHEET_PREFIX   = 'raw_log_';                                         // листы: raw_log_YYYY_MM
-var HEADER         = ['uuid','ts','type','operator','client','city','box','code','receivedAt','source'];
+var HEADER         = ['uuid','ts','type','operator','client','city','box','code','details','receivedAt','source'];
 var TZ             = 'Europe/Moscow';
 
 /** ====== ВСПОМОГАТЕЛЬНЫЕ ====== */
@@ -123,6 +123,7 @@ function doPost(e){
             ev2.city,
             ev2.box,
             ev2.code,
+            ev2.details || '',                 // details
             new Date(),                        // receivedAt
             'pwa'
           ]);
@@ -136,7 +137,7 @@ function doPost(e){
         sh.getRange(start, 1, rows.length, HEADER.length).setValues(rows);
         // Форматы времени
         sh.getRange(start, 2, rows.length, 1).setNumberFormat('dd.MM.yyyy HH:mm:ss'); // ts
-        sh.getRange(start, 9, rows.length, 1).setNumberFormat('dd.MM.yyyy HH:mm:ss'); // receivedAt
+        sh.getRange(start, 10, rows.length, 1).setNumberFormat('dd.MM.yyyy HH:mm:ss'); // receivedAt
         totalWritten += rows.length;
       }
     }
@@ -179,6 +180,34 @@ function doGet(e){
   }
   if (p.api === 'clients') {
     return _json(getClientsState({ date:p.date||'', operator:p.operator||'', client:p.client||'' }));
+  }
+  
+  // API для удаления товаров (только для операторов)
+  if (p.api === 'remove_item') {
+    return _json(removeItemFromBox({
+      operator: p.operator || '',
+      box: p.box || '',
+      code: p.code || '',
+      reason: p.reason || ''
+    }));
+  }
+  
+  // API для массового удаления товаров по UUID
+  if (p.api === 'bulk_remove_items') {
+    return _json(bulkRemoveItems({
+      operator: p.operator || '',
+      uuids: p.uuids || '',
+      reason: p.reason || ''
+    }));
+  }
+  
+  // API для получения логов удалений
+  if (p.api === 'removal_logs') {
+    return _json(getRemovalLogs({
+      date: p.date || '',
+      operator: p.operator || '',
+      client: p.client || ''
+    }));
   }
 
   // export helper lists for cascading filters
@@ -229,6 +258,15 @@ function doGet(e){
   }
   if (p.api === 'raw_ops'){
     return _json(getRawOperators({ date:p.date||'' }));
+  }
+  
+  // API для логов удалений
+  if (p.api === 'removals') {
+    return _json(getRemovalLogs({ 
+      date: p.date || '', 
+      operator: p.operator || '', 
+      client: p.client || '' 
+    }));
   }
 
   // Default ping
@@ -322,6 +360,7 @@ function _dash_readDay_(filters){
       city:       r[idx.city],
       box:        r[idx.box],
       code:       r[idx.code],
+      details:    r[idx.details] || '',
       receivedAt: (receivedCell instanceof Date) ? Utilities.formatDate(receivedCell, DASHBOARD_TZ, 'dd.MM.yyyy HH:mm:ss') : String(receivedCell),
       source:     r[idx.source] || 'pwa',
       tsMs,
@@ -403,6 +442,7 @@ function _dash_readToday_(){
       city:       r[idx.city],
       box:        r[idx.box],
       code:       r[idx.code],
+      details:    r[idx.details] || '',
       receivedAt: (receivedCell instanceof Date)
                     ? Utilities.formatDate(receivedCell, tz, 'dd.MM.yyyy HH:mm:ss')
                     : String(receivedCell),
@@ -1016,4 +1056,260 @@ function dedupeMonthByUuid(sheetName = 'raw_log_2025_09') {
   }
 
   return toDelete.length;
+}
+
+/***** ====== УДАЛЕНИЕ ТОВАРОВ ====== *****/
+function removeItemFromBox(params) {
+  const { operator, box, code, reason } = params;
+  
+  // Проверка авторизации оператора
+  if (!operator || operator.trim() === '') {
+    return { ok: false, error: 'Не указан оператор' };
+  }
+  
+  if (!box || !code) {
+    return { ok: false, error: 'Не указаны короб или код товара' };
+  }
+  
+  try {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    
+    // Создаем событие удаления
+    const removeEvent = {
+      uuid: Utilities.getUuid(),
+      ts: Date.now(),
+      type: 'REMOVE',
+      operator: operator.trim(),
+      client: box.split('/')[0] || '',
+      city: '', // будет заполнено из исходного события
+      box: box,
+      code: code,
+      details: reason || 'Удалено оператором через дашборд'
+    };
+    
+    // Записываем событие удаления в текущий месячный лист
+    const ss = SpreadsheetApp.openById(DASHBOARD_SPREADSHEET_ID);
+    const sheetName = DASHBOARD_SHEET_PREFIX + _dash_monthKey_(new Date());
+    const sh = _getOrCreateSheet(ss, sheetName);
+    
+    const row = [
+      removeEvent.uuid,
+      new Date(removeEvent.ts),
+      removeEvent.type,
+      removeEvent.operator,
+      removeEvent.client,
+      removeEvent.city,
+      removeEvent.box,
+      removeEvent.code,
+      removeEvent.details || '', // details
+      new Date(), // receivedAt
+      'dashboard'
+    ];
+    
+    sh.appendRow(row);
+    
+    // Форматируем время
+    const lastRow = sh.getLastRow();
+    sh.getRange(lastRow, 2, 1, 1).setNumberFormat('dd.MM.yyyy HH:mm:ss'); // ts
+    sh.getRange(lastRow, 10, 1, 1).setNumberFormat('dd.MM.yyyy HH:mm:ss'); // receivedAt
+    
+    // Очищаем кэш для обновления данных
+    const cache = CacheService.getScriptCache();
+    cache.remove('DB_STATE_V2:*');
+    cache.remove('DB_BOXES_V1:*');
+    cache.remove('DB_CLIENTS_V1:*');
+    
+    return { 
+      ok: true, 
+      message: `Товар ${code} удален из короба ${box}`,
+      removeEvent: removeEvent
+    };
+    
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  } finally {
+    try { lock.releaseLock(); } catch(_) {}
+  }
+}
+
+/***** ====== ЛОГИ УДАЛЕНИЙ ====== */
+function getRemovalLogs(filters) {
+  filters = filters || {};
+  
+  try {
+    const rows = _dash_readDay_(filters);
+    
+    // Фильтруем только события удаления
+    const removalEvents = rows.filter(r => 
+      r.type === 'REMOVE' || 
+      r.type === 'BULK_REMOVE'
+    );
+    
+    // Сортируем по времени (новые сверху)
+    removalEvents.sort((a, b) => b.tsMs - a.tsMs);
+    
+    // Форматируем для отображения
+    const formattedLogs = removalEvents.map(event => {
+      let details = '';
+      let reason = '';
+      
+      if (event.type === 'REMOVE') {
+        details = `ШК: ${event.code}`;
+        reason = event.details || 'Не указана';
+      } else if (event.type === 'BULK_REMOVE') {
+        details = event.code; // "Удалено N товаров"
+        reason = event.details || 'Не указана';
+      }
+      
+      return {
+        timestamp: event.ts,
+        operator: event.operator || '—',
+        type: event.type,
+        client: event.client || '—',
+        box: event.box || '—',
+        details: details,
+        reason: reason,
+        tsMs: event.tsMs
+      };
+    });
+    
+    return {
+      ok: true,
+      logs: formattedLogs,
+      total: formattedLogs.length,
+      generatedAt: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error),
+      logs: [],
+      total: 0
+    };
+  }
+}
+
+/***** ====== МАССОВОЕ УДАЛЕНИЕ ТОВАРОВ ====== */
+function bulkRemoveItems(params) {
+  const { operator, uuids, reason } = params;
+  
+  // Проверка авторизации оператора
+  if (!operator || operator.trim() === '') {
+    return { ok: false, error: 'Не указан оператор' };
+  }
+  
+  if (!uuids || uuids.trim() === '') {
+    return { ok: false, error: 'Не указаны UUID товаров для удаления' };
+  }
+  
+  const uuidList = uuids.split(',').map(u => u.trim()).filter(u => u);
+  if (uuidList.length === 0) {
+    return { ok: false, error: 'Список UUID пуст' };
+  }
+  
+  try {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    
+    const ss = SpreadsheetApp.openById(DASHBOARD_SPREADSHEET_ID);
+    const sheetName = DASHBOARD_SHEET_PREFIX + _dash_monthKey_(new Date());
+    const sh = _getOrCreateSheet(ss, sheetName);
+    
+    const values = sh.getDataRange().getValues();
+    if (values.length <= 1) {
+      return { ok: false, error: 'Нет данных для удаления' };
+    }
+    
+    const header = values[0];
+    const col = {};
+    header.forEach((h, i) => col[h] = i);
+    
+    if (col['uuid'] == null) {
+      return { ok: false, error: 'Нет колонки uuid в таблице' };
+    }
+    
+    // Находим строки для удаления
+    const rowsToDelete = [];
+    const removedItems = [];
+    
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      const uuid = String(row[col['uuid']] || '').trim();
+      
+      if (uuidList.includes(uuid)) {
+        rowsToDelete.push(i + 1); // +1 потому что строки в Sheets начинаются с 1
+        removedItems.push({
+          uuid: uuid,
+          code: row[col['code']] || '',
+          box: row[col['box']] || '',
+          operator: row[col['operator']] || ''
+        });
+      }
+    }
+    
+    if (rowsToDelete.length === 0) {
+      return { ok: false, error: 'Не найдены товары с указанными UUID' };
+    }
+    
+    // Удаляем строки снизу вверх (чтобы индексы не сбивались)
+    rowsToDelete.sort((a, b) => b - a);
+    for (const rowIndex of rowsToDelete) {
+      sh.deleteRow(rowIndex);
+    }
+    
+    // Создаем событие массового удаления для аудита
+    const auditEvent = {
+      uuid: Utilities.getUuid(),
+      ts: Date.now(),
+      type: 'BULK_REMOVE',
+      operator: operator.trim(),
+      client: removedItems.length > 0 ? removedItems[0].client : '',
+      city: '',
+      box: removedItems.length > 0 ? removedItems[0].box : '',
+      code: `Удалено ${removedItems.length} товаров`,
+      details: reason || 'Массовое удаление через дашборд'
+    };
+    
+    const auditRow = [
+      auditEvent.uuid,
+      new Date(auditEvent.ts),
+      auditEvent.type,
+      auditEvent.operator,
+      auditEvent.client,
+      auditEvent.city,
+      auditEvent.box,
+      auditEvent.code,
+      auditEvent.details || '', // details
+      new Date(), // receivedAt
+      'dashboard'
+    ];
+    
+    sh.appendRow(auditRow);
+    
+    // Форматируем время для аудита
+    const lastRow = sh.getLastRow();
+    sh.getRange(lastRow, 2, 1, 1).setNumberFormat('dd.MM.yyyy HH:mm:ss'); // ts
+    sh.getRange(lastRow, 10, 1, 1).setNumberFormat('dd.MM.yyyy HH:mm:ss'); // receivedAt
+    
+    // Очищаем кэш для обновления данных
+    const cache = CacheService.getScriptCache();
+    cache.remove('DB_STATE_V2:*');
+    cache.remove('DB_BOXES_V1:*');
+    cache.remove('DB_CLIENTS_V1:*');
+    
+    return { 
+      ok: true, 
+      message: `Удалено ${removedItems.length} товаров`,
+      removedCount: removedItems.length,
+      removedItems: removedItems,
+      auditEvent: auditEvent
+    };
+    
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  } finally {
+    try { lock.releaseLock(); } catch(_) {}
+  }
 }
