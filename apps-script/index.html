@@ -472,21 +472,17 @@ function renderBoxes(data){
         if (openState.boxes.has(boxKey)) bc.classList.remove('hidden');
 
         if (b.items.length){
+          const boxKey = `${c.client}_${city.city}_${b.boxNo}`;
           const tbl = document.createElement('table');
-          tbl.innerHTML = `<thead><tr><th><input type="checkbox" id="selectAll_${c.client}_${city.city}_${b.boxNo}" onchange="toggleAllItems('${c.client}_${city.city}_${b.boxNo}')"></th><th>Время</th><th>Оператор</th><th>ШК</th><th>Действие</th></tr></thead>`;
+          tbl.innerHTML = `<thead><tr><th><input type="checkbox" class="select-all-checkbox" data-box-key="${boxKey}"></th><th>Время</th><th>Оператор</th><th>ШК</th></tr></thead>`;
           const tb = document.createElement('tbody');
           b.items.forEach((it, index)=>{
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td><input type="checkbox" class="item-checkbox" data-uuid="${it.uuid}" data-box="${c.client}/${b.boxNo}" data-code="${it.code}"></td>
+              <td><input type="checkbox" class="item-checkbox" data-box-key="${boxKey}" data-uuid="${it.uuid}" data-box="${c.client}/${b.boxNo}" data-code="${it.code}"></td>
               <td title="${it.ts}">${hhmm(it.ts)}</td>
               <td>${it.operator||'—'}</td>
               <td>${it.code||''}</td>
-              <td>
-                <button class="btn-remove" onclick="removeItem('${it.code}', '${b.client}/${b.boxNo}', '${it.operator}')" title="Удалить товар">
-                  🗑️
-                </button>
-              </td>
             `;
             tb.appendChild(tr);
           });
@@ -496,7 +492,7 @@ function renderBoxes(data){
           const removeBtn = document.createElement('div');
           removeBtn.className = 'bulk-remove-section';
           removeBtn.innerHTML = `
-            <button class="btn-bulk-remove" onclick="removeSelectedItems('${c.client}_${city.city}_${b.boxNo}')" disabled>
+            <button class="btn-bulk-remove" data-box-key="${boxKey}" disabled>
               Удалить выбранные (<span class="selected-count">0</span>)
             </button>
           `;
@@ -924,75 +920,22 @@ function loadRemovals() {
   }
 }
 
-/* ---------- УДАЛЕНИЕ ТОВАРОВ ---------- */
-function removeItem(code, box, originalOperator) {
-  const operator = prompt('Введите ваше имя (оператор):');
-  if (!operator || operator.trim() === '') {
-    alert('Необходимо указать имя оператора');
-    return;
-  }
-  
-  const reason = prompt('Причина удаления (необязательно):') || 'Удалено оператором через дашборд';
-  
-  if (!confirm(`Удалить товар ${code} из короба ${box}?\n\nОператор: ${operator}\nПричина: ${reason}`)) {
-    return;
-  }
-  
-  setBusy(true, 'Удаляем товар...');
-  
-  const params = new URLSearchParams({
-    api: 'remove_item',
-    operator: operator.trim(),
-    box: box,
-    code: code,
-    reason: reason
-  });
-  
-  const url = new URL(window.location.href);
-  url.search = params.toString();
-  
-  fetch(url.toString(), { method: 'GET' })
-    .then(response => response.json())
-    .then(data => {
-      setBusy(false);
-      if (data.ok) {
-        alert(`✅ ${data.message}`);
-        // Обновляем данные
-        loadActiveTab();
-      } else {
-        alert(`❌ Ошибка: ${data.error}`);
-      }
-    })
-    .catch(error => {
-      setBusy(false);
-      alert(`❌ Ошибка сети: ${error.message}`);
-    });
-}
-
-/* ---------- МАССОВОЕ УДАЛЕНИЕ ---------- */
-function toggleAllItems(boxKey) {
-  const selectAll = document.getElementById(`selectAll_${boxKey}`);
-  const checkboxes = document.querySelectorAll(`#selectAll_${boxKey}`).closest('table').querySelectorAll('.item-checkbox');
-  
-  checkboxes.forEach(checkbox => {
-    checkbox.checked = selectAll.checked;
-  });
-  
-  updateBulkRemoveButton(boxKey);
-}
-
+/* ---------- МАССОВОЕ УДАЛЕНИЕ ТОВАРОВ ---------- */
 function updateBulkRemoveButton(boxKey) {
-  const checkboxes = document.querySelectorAll(`#selectAll_${boxKey}`).closest('table').querySelectorAll('.item-checkbox:checked');
-  const button = document.querySelector(`button[onclick="removeSelectedItems('${boxKey}')"]`);
-  const countSpan = button.querySelector('.selected-count');
+  const checkboxes = document.querySelectorAll(`.item-checkbox[data-box-key="${boxKey}"]:checked`);
+  const button = document.querySelector(`.btn-bulk-remove[data-box-key="${boxKey}"]`);
   
+  if (!button) return;
+  
+  const countSpan = button.querySelector('.selected-count');
   const count = checkboxes.length;
-  countSpan.textContent = count;
+  
+  if (countSpan) countSpan.textContent = count;
   button.disabled = count === 0;
 }
 
 function removeSelectedItems(boxKey) {
-  const checkboxes = document.querySelectorAll(`#selectAll_${boxKey}`).closest('table').querySelectorAll('.item-checkbox:checked');
+  const checkboxes = document.querySelectorAll(`.item-checkbox[data-box-key="${boxKey}"]:checked`);
   
   if (checkboxes.length === 0) {
     alert('Выберите товары для удаления');
@@ -1021,48 +964,92 @@ function removeSelectedItems(boxKey) {
   
   setBusy(true, `Удаляем ${selectedItems.length} товаров...`);
   
-  const params = new URLSearchParams({
-    api: 'bulk_remove_items',
+  const params = {
     operator: operator.trim(),
-    reason: reason,
-    uuids: selectedItems.map(item => item.uuid).join(',')
-  });
+    uuids: selectedItems.map(item => item.uuid).join(','),
+    reason: reason
+  };
   
-  const url = new URL(window.location.href);
-  url.search = params.toString();
+  const handleSuccess = (data) => {
+    setBusy(false);
+    if (data.ok) {
+      alert(`✅ Удалено ${data.removedCount} товаров`);
+      // Обновляем данные
+      loadActiveTab();
+    } else {
+      alert(`❌ Ошибка: ${data.error}`);
+    }
+  };
   
-  fetch(url.toString(), { method: 'GET' })
-    .then(response => response.json())
-    .then(data => {
-      setBusy(false);
-      if (data.ok) {
-        alert(`✅ Удалено ${data.removedCount} товаров`);
-        // Обновляем данные
-        loadActiveTab();
-      } else {
-        alert(`❌ Ошибка: ${data.error}`);
-      }
-    })
-    .catch(error => {
-      setBusy(false);
-      alert(`❌ Ошибка сети: ${error.message}`);
+  const handleError = (error) => {
+    setBusy(false);
+    alert(`❌ Ошибка: ${error || 'Неизвестная ошибка'}`);
+  };
+  
+  // Используем google.script.run если доступно (внутри Apps Script)
+  if (window.google && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(handleSuccess)
+      .withFailureHandler(handleError)
+      .bulkRemoveItems(params);
+  } else {
+    // Иначе используем fetch для внешнего вызова
+    const urlParams = new URLSearchParams({
+      api: 'bulk_remove_items',
+      operator: params.operator,
+      reason: params.reason,
+      uuids: params.uuids
     });
+    
+    const url = new URL(window.location.href);
+    url.search = urlParams.toString();
+    
+    fetch(url.toString(), { method: 'GET' })
+      .then(response => response.json())
+      .then(handleSuccess)
+      .catch(error => handleError(error.message));
+  }
 }
 
 // Добавляем обработчики событий для чекбоксов
 document.addEventListener('change', function(e) {
+  // Обработка чекбоксов товаров
   if (e.target.classList.contains('item-checkbox')) {
-    const table = e.target.closest('table');
-    const boxKey = table.querySelector('input[type="checkbox"]').id.replace('selectAll_', '');
+    const boxKey = e.target.dataset.boxKey;
     updateBulkRemoveButton(boxKey);
     
     // Обновляем состояние "Выбрать все"
-    const selectAll = document.getElementById(`selectAll_${boxKey}`);
-    const allCheckboxes = table.querySelectorAll('.item-checkbox');
-    const checkedCheckboxes = table.querySelectorAll('.item-checkbox:checked');
+    const selectAll = document.querySelector(`.select-all-checkbox[data-box-key="${boxKey}"]`);
+    if (selectAll) {
+      const allCheckboxes = document.querySelectorAll(`.item-checkbox[data-box-key="${boxKey}"]`);
+      const checkedCheckboxes = document.querySelectorAll(`.item-checkbox[data-box-key="${boxKey}"]:checked`);
+      
+      selectAll.checked = allCheckboxes.length === checkedCheckboxes.length && allCheckboxes.length > 0;
+      selectAll.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+    }
+  }
+  
+  // Обработка чекбокса "Выбрать все"
+  if (e.target.classList.contains('select-all-checkbox')) {
+    const boxKey = e.target.dataset.boxKey;
+    const checkboxes = document.querySelectorAll(`.item-checkbox[data-box-key="${boxKey}"]`);
     
-    selectAll.checked = allCheckboxes.length === checkedCheckboxes.length;
-    selectAll.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = e.target.checked;
+    });
+    
+    updateBulkRemoveButton(boxKey);
+  }
+});
+
+// Добавляем обработчики для кнопок удаления
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('btn-bulk-remove') || e.target.closest('.btn-bulk-remove')) {
+    const button = e.target.classList.contains('btn-bulk-remove') ? e.target : e.target.closest('.btn-bulk-remove');
+    const boxKey = button.dataset.boxKey;
+    if (boxKey) {
+      removeSelectedItems(boxKey);
+    }
   }
 });
 
