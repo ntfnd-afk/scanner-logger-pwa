@@ -16,19 +16,51 @@ export async function syncNow(){
   if(unsent.length>MAX_BATCH) unsent=unsent.slice(0,MAX_BATCH);
   try{
     syncInFlight=true;
-    const url=APP.state.syncUrl;
-    const events=unsent.map(r=>({uuid:r.uuid,ts:r.timestamp,type:r.type,operator:r.operator,client:r.client,city:r.city,box:r.box,code:r.code}));
-    const payload=JSON.stringify({events});
-    const usePlain=APP.state.sendPlain!==false; // Читаем из настроек
-    const resp=await fetch(url,{method:'POST',headers:usePlain?{'Content-Type':'text/plain;charset=UTF-8'}:{'Content-Type':'application/json'},body:payload});
-    const text=await resp.text();
-    let data=null; try{ data=JSON.parse(text);}catch(_){ data=null; }
-    if(!resp.ok || !data || data.ok!==true){ const msg=!resp.ok?`HTTP ${resp.status}`:(data?(data.error||'ok:false'):'bad json'); throw new Error(msg); }
+    const apiUrl=APP.state.syncUrl || 'https://scanner-api.fulfilment-one.ru';
+    const apiKey=APP.state.apiKey || 'your_secret_api_key'; // Можно добавить в настройки
+    
+    // Формат для нового FastAPI бэкенда
+    const events=unsent.map(r=>({
+      uuid:r.uuid,
+      timestamp:r.timestamp,
+      type:r.type,
+      operator:r.operator,
+      client:r.client||'',
+      city:r.city||'',
+      box:r.box||'',
+      code:r.code||'',
+      source:'pwa',
+      details:r.details||''
+    }));
+    
+    const resp=await fetch(`${apiUrl}/api/v1/scans/batch`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-API-Key':apiKey
+      },
+      body:JSON.stringify({scans:events})
+    });
+    
+    if(!resp.ok){
+      const errorText=await resp.text();
+      throw new Error(`HTTP ${resp.status}: ${errorText}`);
+    }
+    
+    const data=await resp.json();
+    if(!data.success){ throw new Error(data.message||'Sync failed'); }
+    
+    // Отмечаем события как синхронизированные
     for(const r of unsent){ r.synced=true; await put(APP.db,'events',r); }
     APP.state.lastSync=Date.now(); APP.state.lastSyncError=false; setStatePill('ok','IDLE');
-    // Импортируем и сбрасываем firstUnsentTs из app.js через глобальный объект window
+    
+    // Сбрасываем firstUnsentTs
     if(window.resetFirstUnsentTs) window.resetFirstUnsentTs();
-  }catch(e){ console.error(e); APP.state.lastSyncError=true; setStatePill('error','SYNC ERR'); }
+  }catch(e){ 
+    console.error('Sync error:', e); 
+    APP.state.lastSyncError=true; 
+    setStatePill('error','SYNC ERR'); 
+  }
   finally{ syncInFlight=false; render(); }
 }
 
