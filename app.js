@@ -48,6 +48,25 @@ async function loadSettings(){
   $('#themeToggle').checked=(APP.state.theme==='light'); 
   
   // Восстановление состояния работы (город, короб)
+  // Преобразуем пустые строки в null
+  if(APP.state.city===''){ APP.state.city=null; }
+  if(APP.state.box===''){ APP.state.box=null; }
+  if(APP.state.client===''){ APP.state.client=null; }
+  
+  // Преобразуем числа
+  if(typeof APP.state.itemsInBox==='string'){ APP.state.itemsInBox=parseInt(APP.state.itemsInBox)||0; }
+  if(typeof APP.state.boxStart==='string'){ APP.state.boxStart=parseInt(APP.state.boxStart)||null; }
+  
+  // Отладочный лог
+  console.log('🔄 Восстановление состояния:', {
+    city: APP.state.city,
+    box: APP.state.box,
+    client: APP.state.client,
+    itemsInBox: APP.state.itemsInBox,
+    boxStart: APP.state.boxStart
+  });
+  
+  // Устанавливаем статус
   if(APP.state.city){ setStatePill('ok','CITY'); }
   if(APP.state.box){ setStatePill('ok','BOX'); }
 }
@@ -156,6 +175,7 @@ function initSW(){ if('serviceWorker' in navigator){ navigator.serviceWorker.reg
   initTabs(); 
   const firstTab=document.querySelector('.nav-tab.active'); 
   if(firstTab) firstTab.click(); 
+  render(); // Восстановление UI после загрузки состояния
   initScanner(); 
   initDrawerFocusControl(); 
   initSW(); 
