@@ -7,7 +7,7 @@ import { initTabs, renderActionsTab, renderDashboardTab, toggleAcc } from './ui/
 const $=(s)=>document.querySelector(s);
 const MESSAGES={NO_CITY:'Сначала откройте город',NO_BOX:'Сначала откройте короб',BOX_NOT_CLOSED:'Сначала закройте текущий короб',CITY_NOT_CLOSED:'Сначала закройте текущий город',CITY_CLOSED:'Город закрыт',BOX_CLOSED:'Короб закрыт',SYNC_ERROR:'Ошибка синхронизации',BOX_TIMEOUT:'Короб автоматически закрыт',CYRILLIC_ERROR:'Ошибка: кириллица в QR-коде'};
 function say(code){ if(MESSAGES[code]) speak(MESSAGES[code]); }
-let debounceTimer=null; const DEBOUNCE_MS=3000; const MAX_BATCH=40; let sendingNow=false; let firstUnsentTs=null;
+let debounceTimer=null; const DEBOUNCE_MS=1000; const MAX_BATCH=20; let sendingNow=false; let firstUnsentTs=null;
 function setSending(on){ 
   sendingNow=on; 
   const el=$('#itemsCountVal'); 
@@ -141,8 +141,8 @@ function initSW(){ if('serviceWorker' in navigator){ navigator.serviceWorker.reg
   initOrientation(); 
   if(!APP.state.syncUrl || !APP.state.operator) openInitDialog(); 
   
-  // Периодическая синхронизация каждую минуту
-  setInterval(()=>{ if(APP.state.online) syncNow(); },60000); 
+  // Периодическая синхронизация каждые 10 секунд
+  setInterval(()=>{ if(APP.state.online) syncNow(); },10000); 
   
   // Автоматическое закрытие коробов через 60 минут бездействия
   setInterval(()=>{ 

@@ -2,7 +2,7 @@ import { put, getAll } from '../db/index.js';
 import { APP, setStatePill, render } from '../state/appState.js';
 
 let syncInFlight = false;
-const MAX_BATCH = 40;
+const MAX_BATCH = 20;
 
 export async function syncNow(){
   if(syncInFlight) return;
