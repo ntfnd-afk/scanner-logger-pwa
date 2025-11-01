@@ -22,7 +22,7 @@ export async function syncNow(){
     // Формат для нового FastAPI бэкенда
     const events=unsent.map(r=>({
       uuid:r.uuid,
-      timestamp:r.timestamp,
+      ts:r.timestamp,  // API ожидает 'ts', а не 'timestamp'
       type:r.type,
       operator:r.operator,
       client:r.client||'',
@@ -33,13 +33,13 @@ export async function syncNow(){
       details:r.details||''
     }));
     
-    const resp=await fetch(`${apiUrl}/api/v1/scans/batch`, {
+    const resp=await fetch(`${apiUrl}/api/v1/events/batch`, {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
         'X-API-Key':apiKey
       },
-      body:JSON.stringify({scans:events})
+      body:JSON.stringify({events:events})  // API ожидает {events: [...]}
     });
     
     if(!resp.ok){
@@ -48,7 +48,7 @@ export async function syncNow(){
     }
     
     const data=await resp.json();
-    if(!data.success){ throw new Error(data.message||'Sync failed'); }
+    if(!data.ok){ throw new Error(data.errors?.join(', ')||'Sync failed'); }
     
     // Отмечаем события как синхронизированные
     for(const r of unsent){ r.synced=true; await put(APP.db,'events',r); }
