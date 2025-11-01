@@ -17,7 +17,7 @@ export async function syncNow(){
   try{
     syncInFlight=true;
     const apiUrl=APP.state.syncUrl || 'https://scanner-api.fulfilment-one.ru';
-    const apiKey=APP.state.apiKey || 'your_secret_api_key'; // Можно добавить в настройки
+    const apiKey=APP.state.apiKey || 'ihkLCIfVDynpEcr14NxuO8ZBWKHzMU60';
     
     // Формат для нового FastAPI бэкенда
     const events=unsent.map(r=>({
