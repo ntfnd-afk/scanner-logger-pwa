@@ -32,6 +32,13 @@ node_modules/
 *.tmp
 .cache/
 
+# Archives
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z
+
 # Mac
 .AppleDouble
 .LSOverride
