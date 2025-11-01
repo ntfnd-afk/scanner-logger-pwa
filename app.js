@@ -154,7 +154,38 @@ function initTheme(){ const t=$('#themeToggle'); t.checked=(APP.state.theme==='l
 function needInit(){ return !APP.state.syncUrl || !APP.state.operator; }
 function openInitDialog(){ const d=$('#init-dlg'); $('#init-sync').value=APP.state.syncUrl||''; $('#init-operator').value=APP.state.operator||''; d.showModal(); }
 function bindInitDialog(){ $('#init-save').addEventListener('click', async ()=>{ const u=$('#init-sync').value.trim(); const o=$('#init-operator').value.trim(); if(!u||!o){ alert('Заполните оба поля'); return; } await saveSetting('syncUrl',u); await saveSetting('operator',o); $('#init-dlg').close(); document.querySelector('.tab.active').click(); }); $('#init-cancel').addEventListener('click', ()=> $('#init-dlg').close()); }
-function initNetwork(){ const upd=()=>{ APP.state.online=navigator.onLine; render(); }; addEventListener('online',upd); addEventListener('offline',upd); upd(); }
+function initNetwork(){ 
+  const upd=()=>{ 
+    const wasOnline = APP.state.online;
+    APP.state.online=navigator.onLine; 
+    
+    if(APP.state.online && !wasOnline) {
+      console.log('🌐 Network restored, attempting sync...');
+      setStatePill('ok', 'ONLINE');
+      // Пытаемся синхронизировать при восстановлении соединения
+      setTimeout(() => {
+        if(APP.state.online) syncNow();
+      }, 1000);
+    } else if(!APP.state.online && wasOnline) {
+      console.log('📡 Network lost');
+      setStatePill('warn', 'OFFLINE');
+    }
+    
+    render(); 
+  }; 
+  
+  addEventListener('online',upd); 
+  addEventListener('offline',upd); 
+  upd(); 
+  
+  // Периодическая проверка соединения (каждые 30 секунд)
+  setInterval(() => {
+    if(navigator.onLine !== APP.state.online) {
+      console.log('🔍 Network state changed detected');
+      upd();
+    }
+  }, 30000);
+}
 async function getTodayEvents(){ const today=ymd(Date.now()); if(typeof getAllByIndex==='function'){ try{ return await getAllByIndex(APP.db,'events','byDay',today); }catch(_){ /* fallback to full scan below */ } } const rows=await getAll(APP.db,'events'); return rows.filter(r=> r.day===today); }
 // moved to ui/tabs.js
 // tabs moved to ./ui/tabs.js
