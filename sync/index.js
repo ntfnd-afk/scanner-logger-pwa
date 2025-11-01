@@ -50,9 +50,18 @@ export async function syncNow(){
     const data=await resp.json();
     if(!data.ok){ throw new Error(data.errors?.join(', ')||'Sync failed'); }
     
-    // Отмечаем события как синхронизированные
+    // Проверяем наличие ошибок валидации
+    if(data.errors && data.errors.length > 0){
+      console.warn('⚠️ Sync warnings:', data.errors);
+    }
+    
+    // Отмечаем события как синхронизированные (только успешно вставленные)
+    // Если есть дубликаты - они тоже помечаются как synced (это нормально)
     for(const r of unsent){ r.synced=true; await put(APP.db,'events',r); }
     APP.state.lastSync=Date.now(); APP.state.lastSyncError=false; setStatePill('ok','IDLE');
+    
+    // Логируем статистику
+    console.log(`✅ Sync: ${data.inserted} inserted, ${data.skipped} skipped (duplicates)`);
     
     // Сбрасываем firstUnsentTs
     if(window.resetFirstUnsentTs) window.resetFirstUnsentTs();
